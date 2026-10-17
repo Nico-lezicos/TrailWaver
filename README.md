@@ -14,6 +14,10 @@ TrailWaver se compose de deux outils indépendants :
 | `analyze_gpx.py` | CLI — analyse une trace par tronçons de 500 m, produit un rapport CSV, une carte HTML et un GPX annoté |
 | `editor.py` | Web — éditeur GPX interactif (Flask + Leaflet), colorisation, analyse, dessin, export Garmin/OsmAnd |
 
+![Éditeur TrailWaver — colorisation par types de route OSM](Pr%C3%A9sentation.png)
+
+*Éditeur web — trace TET FR colorée par type de voie OSM (chemin grade 1–5, route classifiée), sidebar track/segments, toolbar complète.*
+
 ---
 
 ## Installation

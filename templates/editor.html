@@ -244,7 +244,7 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
   <div class="sep"></div>
   <button id="btn3d" title="Basculer vue 3D / 2D">🏔️ 3D</button>
   <div id="exag-wrap">
-    <span>Exag.</span>
+    <span id="exag-text">Exag.</span>
     <input type="range" id="exaggeration" min="1" max="5" step="0.5" value="1.5">
     <span id="exag-label">×1.5</span>
   </div>
@@ -253,6 +253,7 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
     <input type="text" id="searchInput" placeholder="🔍 Lieu, col, site…" autocomplete="off" spellcheck="false">
     <div id="searchDrop"></div>
   </div>
+  <button id="btnLang" title="Switch language / Changer la langue" style="font-size:10px;padding:2px 7px">EN</button>
   <button id="btnDocs" title="Documentation">?</button>
   <span id="status">Aucun fichier</span>
 </div>
@@ -280,9 +281,9 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
       <div class="gpx-sub" id="gpx-sub"></div>
     </div>
     <div id="sb-noelev">
-      <div class="sne-title">⛰ Relief absent</div>
+      <div class="sne-title" id="sb-noelev-title">⛰ Relief absent</div>
       <button id="btnSbTopo">🏔 Charger topo SRTM</button>
-      <div class="sne-or">ou saisir manuellement :</div>
+      <div class="sne-or" id="sne-or">ou saisir manuellement :</div>
       <div class="sne-row">
         <span>D+</span><input type="number" id="sbDPlus" min="0" step="10" placeholder="m">
         <span>D-</span><input type="number" id="sbDMinus" min="0" step="10" placeholder="m">
@@ -290,12 +291,12 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
       </div>
     </div>
     <div id="sb-nohw">
-      <div class="snhw-title">🛣️ Types de route non chargés</div>
+      <div class="snhw-title" id="sb-nohw-title">🛣️ Types de route non chargés</div>
       <button id="btnSbHw">🛣️ Charger types OSM</button>
     </div>
     <div id="tree"></div>
     <div class="analyze-bar">
-      <label>Tronçons</label>
+      <label id="analyze-label">Tronçons</label>
       <input type="number" id="segLen" value="500" min="100" max="5000" step="100">
       <label>m</label>
     </div>
@@ -309,11 +310,11 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
     </div>
     <div id="map3d"></div>
     <div id="measure-panel">
-      <h4>📏 Mesure difficulté <span id="measure-close">×</span></h4>
+      <h4><span id="measure-h4-txt">📏 Mesure difficulté</span> <span id="measure-close">×</span></h4>
       <div class="mrow" id="measure-stats"></div>
       <div id="measure-hint">Cliquez un point de départ sur la trace</div>
       <div id="measure-elev-missing">
-        <div class="em-title">⛰ Données relief absentes</div>
+        <div class="em-title" id="em-title-el">⛰ Données relief absentes</div>
         <div id="measure-elev-row">
           <button id="btnMeasureTopo">🏔 Charger topo SRTM</button>
           <span>ou saisir :</span>
@@ -349,6 +350,193 @@ button.topo-ok{border-color:#16a34a;color:#4ade80}
 <script src="https://cdn.jsdelivr.net/npm/leaflet-hotline@0.4.0/dist/leaflet.hotline.min.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
+// ── i18n ─────────────────────────────────────────────────────────────────────
+let lang = localStorage.getItem('tw_lang') || 'fr';
+const LANG = {
+  fr:{
+    btnRect:'▭ Rectangle', title_rect:'Sélection rectangle (R)',
+    btnNone:'Désél.', btnInvert:'Inverser', btnDelete:'🗑 Suppr.',
+    btnExport:'⬇ Export',
+    btnAnalyze:'📊 Analyser', title_analyze:'Découper les traces en tronçons et scorer la difficulté',
+    btnTopo:'🏔 Élévation topo', title_topo:'Charger les altitudes depuis les tuiles SRTM (NASA 90m)',
+    btnOsmTypes:'🛣️ Types route', title_osmtypes:'Charger les types de route OSM pour la trace',
+    colorDefault:'Couleur : Tracé', colorAltitude:'Couleur : Altitude',
+    colorSlope:'Couleur : Pente %', colorDifficulty:'Couleur : Difficulté', colorHighway:'Couleur : Type route',
+    btnGeo:'📍 Moi', title_geo:'Centrer sur ma position',
+    btnMeasure:'📏 Mesurer', title_measure:'Mesurer difficulté entre deux points (clic départ → clic arrivée)',
+    btnDraw:'✏ Dessiner', title_draw:'Dessiner une nouvelle trace (D) — snap OSM si chargé · double-clic pour terminer · clic-droit annule dernier point · Échap annule',
+    title_width:'Épaisseur du tracé', btn3d:'🏔️ 3D', title_3d:'Basculer vue 3D / 2D', exagText:'Exag.',
+    status_nofile:'Aucun fichier', fileSelectDefault:'— fichier GPX —',
+    btnUpload:'📂 Ouvrir GPX depuis le PC', btnDeleteGpx:'🗑 Supprimer ce fichier GPX',
+    noelev_title:'⛰ Relief absent', btnSbTopo:'🏔 Charger topo SRTM',
+    sne_or:'ou saisir manuellement :',
+    nohw_title:'🛣️ Types de route non chargés', btnSbHw:'🛣️ Charger types OSM',
+    analyze_label:'Tronçons',
+    measure_h4:'📏 Mesure difficulté',
+    measure_hint_start:'Cliquez un point de départ sur la trace',
+    measure_hint_A:'Cliquez sur la trace pour poser le point A',
+    measure_hint_B:'Cliquez sur la trace pour poser le point B',
+    measure_pts_new:'pts · cliquez A pour nouvelle mesure',
+    measure_pts_sel:'pts sélectionnés',
+    em_title:'⛰ Données relief absentes', btnMeasureTopo:'🏔 Charger topo SRTM', btnMeasureManual:'Appliquer',
+    btnRoadbook:'🖨 Générer feuille de route rally',
+    measure_note:'ℹ La mesure s\'effectue uniquement sur les points d\'une trace GPX chargée. A et B doivent appartenir à la même trace.',
+    access_yes:'Autorisé', access_res:'Restreint', access_prv:'Privé', access_no:'Interdit',
+    leg_hw_title:'Type de route (OSM)', leg_hw_min:'Asphalte', leg_hw_mid:'Chemin', leg_hw_max:'Sentier',
+    leg_diff_title:'Difficulté (score auto)', leg_diff_min:'★ Facile', leg_diff_mid:'★★★ Moyen', leg_diff_max:'★★★★★ Extrême',
+    leg_slope_title:'Pente %', leg_alt_title:'Altitude (m)',
+    curve_0:'Rectiligne', curve_03:'Sinueux', curve_07:'Tortueux', curve_10:'Très tortueux', curve_15:'Épingles',
+    diff_1:'Facile', diff_2:'Aisé', diff_3:'Moyen', diff_4:'Difficile', diff_5:'Extrême',
+    lbl_dist:'Distance', lbl_dplus:'D+', lbl_dminus:'D-', lbl_slope_avg:'Pente moy.', lbl_slope_max:'Pente max.',
+    lbl_sinuosity:'Sinuosité', lbl_difficulty:'Difficulté', lbl_diff_est:'Difficulté est.',
+    lbl_sel:'sél.',
+    st_srtm_err:'Erreur téléchargement SRTM',
+    st_no_pts:'⚠ Aucun point à exporter',
+    st_export_err:'⚠ Erreur export', st_upload_err:'⚠ Erreur upload',
+    st_delete_err:'⚠ Erreur suppression',
+    st_osm_err:'Erreur OSM : ', st_osm_loaded:' voies OSM chargées',
+    st_geo_unsup:'Géolocalisation non supportée', st_geo_denied:'Position refusée : ',
+    st_deleted:' supprimé',
+    st_draw_mode:'✏ Dessin — clic : ajouter point · double-clic : terminer · clic-droit : annuler dernier · Échap : annuler',
+    st_draw_added:'✓ Trace ajoutée', st_draw_save:'exportez pour sauvegarder',
+    eye_hide:'Masquer', eye_show:'Afficher', eye_toggle:'Tout masquer / afficher',
+    icon_change:'Changer l\'icône', comment_ph:'Commentaire…',
+    manual_note:'Valeurs saisies manuellement',
+    search_ph:'🔍 Lieu, col, site…',
+    title_north:'Nord', title_gpxeye:'Tout masquer / afficher',
+    docs_title:'TrailWaver — Documentation',
+    rb_date:'Date', rb_file:'Fichier', rb_dist_km:'Dist. (km)', rb_partial_km:'Partiel (km)',
+    rb_direction:'Direction', rb_description:'Description', rb_notes:'Notes', rb_print:'🖨 Imprimer',
+    rb_slope_avg:'Pente moy.', rb_difficulty:'Difficulté',
+  },
+  en:{
+    btnRect:'▭ Select', title_rect:'Rectangle select (R)',
+    btnNone:'Desel.', btnInvert:'Invert', btnDelete:'🗑 Del.',
+    btnExport:'⬇ Export',
+    btnAnalyze:'📊 Analyze', title_analyze:'Split tracks into segments and score difficulty',
+    btnTopo:'🏔 Topo elevation', title_topo:'Load altitude from SRTM tiles (NASA 90m)',
+    btnOsmTypes:'🛣️ Road types', title_osmtypes:'Load OSM road types for the track',
+    colorDefault:'Color: Track', colorAltitude:'Color: Altitude',
+    colorSlope:'Color: Slope %', colorDifficulty:'Color: Difficulty', colorHighway:'Color: Road type',
+    btnGeo:'📍 Me', title_geo:'Center on my location',
+    btnMeasure:'📏 Measure', title_measure:'Measure difficulty between two points (click start → click end)',
+    btnDraw:'✏ Draw', title_draw:'Draw a new track (D) — OSM snap if loaded · double-click to finish · right-click undoes last · Esc cancels',
+    title_width:'Track width', btn3d:'🏔️ 3D', title_3d:'Toggle 3D / 2D view', exagText:'Exag.',
+    status_nofile:'No file', fileSelectDefault:'— GPX file —',
+    btnUpload:'📂 Open GPX from PC', btnDeleteGpx:'🗑 Delete this GPX file',
+    noelev_title:'⛰ No elevation data', btnSbTopo:'🏔 Load SRTM topo',
+    sne_or:'or enter manually:',
+    nohw_title:'🛣️ Road types not loaded', btnSbHw:'🛣️ Load OSM types',
+    analyze_label:'Segments',
+    measure_h4:'📏 Difficulty measure',
+    measure_hint_start:'Click a start point on the track',
+    measure_hint_A:'Click on the track to place point A',
+    measure_hint_B:'Click on the track to place point B',
+    measure_pts_new:'pts · click A for a new measure',
+    measure_pts_sel:'pts selected',
+    em_title:'⛰ No elevation data', btnMeasureTopo:'🏔 Load SRTM topo', btnMeasureManual:'Apply',
+    btnRoadbook:'🖨 Generate rally roadbook',
+    measure_note:'ℹ Measure only works on loaded GPX track points. A and B must belong to the same track.',
+    access_yes:'Allowed', access_res:'Restricted', access_prv:'Private', access_no:'Forbidden',
+    leg_hw_title:'Road type (OSM)', leg_hw_min:'Asphalt', leg_hw_mid:'Track', leg_hw_max:'Path',
+    leg_diff_title:'Difficulty (auto score)', leg_diff_min:'★ Easy', leg_diff_mid:'★★★ Medium', leg_diff_max:'★★★★★ Extreme',
+    leg_slope_title:'Slope %', leg_alt_title:'Altitude (m)',
+    curve_0:'Straight', curve_03:'Sinuous', curve_07:'Tortuous', curve_10:'Very winding', curve_15:'Hairpins',
+    diff_1:'Easy', diff_2:'Mild', diff_3:'Medium', diff_4:'Hard', diff_5:'Extreme',
+    lbl_dist:'Distance', lbl_dplus:'D+', lbl_dminus:'D-', lbl_slope_avg:'Avg slope', lbl_slope_max:'Max slope',
+    lbl_sinuosity:'Sinuosity', lbl_difficulty:'Difficulty', lbl_diff_est:'Est. difficulty',
+    lbl_sel:'sel.',
+    st_srtm_err:'SRTM download error',
+    st_no_pts:'⚠ No points to export',
+    st_export_err:'⚠ Export error', st_upload_err:'⚠ Upload error',
+    st_delete_err:'⚠ Delete error',
+    st_osm_err:'OSM error: ', st_osm_loaded:' OSM ways loaded',
+    st_geo_unsup:'Geolocation not supported', st_geo_denied:'Position denied: ',
+    st_deleted:' deleted',
+    st_draw_mode:'✏ Draw — click: add point · dbl-click: finish · right-click: undo last · Esc: cancel',
+    st_draw_added:'✓ Track added', st_draw_save:'export to save',
+    eye_hide:'Hide', eye_show:'Show', eye_toggle:'Toggle all visibility',
+    icon_change:'Change icon', comment_ph:'Comment…',
+    manual_note:'Manually entered values',
+    search_ph:'🔍 Place, pass, site…',
+    title_north:'North', title_gpxeye:'Toggle all visibility',
+    docs_title:'TrailWaver — Documentation',
+    rb_date:'Date', rb_file:'File', rb_dist_km:'Dist. (km)', rb_partial_km:'Partial (km)',
+    rb_direction:'Direction', rb_description:'Description', rb_notes:'Notes', rb_print:'🖨 Print',
+    rb_slope_avg:'Avg slope', rb_difficulty:'Difficulty',
+  }
+};
+function t(k){ return (LANG[lang]||LANG.fr)[k]||k; }
+
+function applyLang(){
+  const btn=document.getElementById('btnLang');
+  if(btn) btn.textContent = lang==='fr' ? 'EN' : 'FR';
+  const $e=id=>document.getElementById(id);
+  const set=(id,v)=>{ const el=$e(id); if(el) el.textContent=v; };
+  const setT=(id,v)=>{ const el=$e(id); if(el) el.title=v; };
+  const setB=(id,tk,ttk)=>{ const el=$e(id); if(!el) return; el.textContent=t(tk); if(ttk) el.title=t(ttk); };
+  // Toolbar
+  setB('btnRect','btnRect','title_rect');
+  set('btnNone',t('btnNone')); set('btnInvert',t('btnInvert')); set('btnDelete',t('btnDelete'));
+  set('btnExport',t('btnExport'));
+  setB('btnAnalyze','btnAnalyze','title_analyze');
+  setB('btnTopo','btnTopo','title_topo');
+  setB('btnOsmTypes','btnOsmTypes','title_osmtypes');
+  setB('btnGeo','btnGeo','title_geo');
+  setB('btnMeasure','btnMeasure','title_measure');
+  setB('btnDraw','btnDraw','title_draw');
+  setB('btn3d','btn3d','title_3d');
+  setT('trackWidth',t('title_width'));
+  set('exag-text',t('exagText'));
+  const cp=$e('colorPicker');
+  if(cp) ['colorDefault','colorAltitude','colorSlope','colorDifficulty','colorHighway']
+    .forEach((k,i)=>{ if(cp.options[i]) cp.options[i].text=t(k); });
+  // Sidebar
+  const fs=$e('fileSelect');
+  if(fs&&fs.options[0]&&fs.options[0].value==='') fs.options[0].text=t('fileSelectDefault');
+  setB('btnUpload','btnUpload'); setB('btnDeleteGpx','btnDeleteGpx');
+  set('sb-noelev-title',t('noelev_title'));
+  setB('btnSbTopo','btnSbTopo');
+  set('sne-or',t('sne_or'));
+  set('sb-nohw-title',t('nohw_title'));
+  setB('btnSbHw','btnSbHw');
+  set('analyze-label',t('analyze_label'));
+  // Measure panel
+  set('measure-h4-txt',t('measure_h4'));
+  set('measure-hint',t('measure_hint_start'));
+  set('em-title-el',t('em_title'));
+  setB('btnMeasureTopo','btnMeasureTopo');
+  setB('btnMeasureManual','btnMeasureManual');
+  setB('btnRoadbook','btnRoadbook');
+  set('measure-note',t('measure_note'));
+  // Access legend
+  const al=$e('access-legend');
+  if(al) al.innerHTML=`
+    <div><span class="dot" style="background:#22c55e"></span>${t('access_yes')}</div>
+    <div><span class="dot" style="background:#eab308"></span>${t('access_res')}</div>
+    <div><span class="dot" style="background:#f97316"></span>${t('access_prv')}</div>
+    <div><span class="dot" style="background:#ef4444"></span>${t('access_no')}</div>`;
+  // Search placeholder
+  const si=$e('searchInput'); if(si) si.placeholder=t('search_ph');
+  setT('compass',t('title_north'));
+  const ge=$e('gpx-eye'); if(ge) ge.title=t('title_gpxeye');
+  const dh=document.querySelector('#docs-panel header h2');
+  if(dh) dh.textContent=t('docs_title');
+  // Update DIFF_LABELS array so tree badges and measure display pick up new lang
+  DIFF_LABELS=['',t('diff_1'),t('diff_2'),t('diff_3'),t('diff_4'),t('diff_5')];
+  updateLegend();
+  if(points.length) buildTree();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('btnLang').addEventListener('click',()=>{
+    lang = lang==='fr'?'en':'fr';
+    localStorage.setItem('tw_lang',lang);
+    applyLang();
+  });
+  applyLang();
+});
+
 // ── Map ───────────────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: true }).setView([50.5, 4.5], 8);
 
@@ -483,8 +671,7 @@ function _curveBonus(pts,distM,step=25){
   if(wtpk<25) return 1.0;
   return 1.5;
 }
-const CURVE_LABELS={0:'Rectiligne',0.3:'Sinueux',0.7:'Tortueux',1.0:'Très tortueux',1.5:'Épingles'};
-function _curveLbl(b){return CURVE_LABELS[b]||(b>0?'Sinueux':'Rectiligne');}
+function _curveLbl(b){const m={0:'curve_0',0.3:'curve_03',0.7:'curve_07',1.0:'curve_10',1.5:'curve_15'};return t(m[b])||(b>0?t('curve_03'):t('curve_0'));}
 
 // ── Compute slopes (per-segment, stored on the START point of each segment) ───
 function computeSlopes(){
@@ -637,22 +824,22 @@ function updateLegend(){
   const grad   = isAlt ? CSS_GRAD_ALT : isDiff ? CSS_GRAD_DIFF : isHw ? [[0,'#6366f1'],[0.3,'#10b981'],[0.6,'#f97316'],[1,'#7f1d1d']] : CSS_GRAD_SLOPE;
   document.getElementById('legend-bar').style.background = `linear-gradient(to right,${cssGrad(grad)})`;
   if(isAlt){
-    document.getElementById('legend-title').textContent = `Altitude (m)${topoLoaded?' · topo':' · GPS'}`;
+    document.getElementById('legend-title').textContent = `${t('leg_alt_title')}${topoLoaded?' · topo':' · GPS'}`;
     document.getElementById('leg-min').textContent = Math.round(altMin)+'m';
     document.getElementById('leg-mid').textContent = Math.round((altMin+altMax)/2)+'m';
     document.getElementById('leg-max').textContent = Math.round(altMax)+'m';
   } else if(isHw){
-    document.getElementById('legend-title').textContent = 'Type de route (OSM)';
-    document.getElementById('leg-min').textContent = 'Asphalte';
-    document.getElementById('leg-mid').textContent = 'Chemin';
-    document.getElementById('leg-max').textContent = 'Sentier';
+    document.getElementById('legend-title').textContent = t('leg_hw_title');
+    document.getElementById('leg-min').textContent = t('leg_hw_min');
+    document.getElementById('leg-mid').textContent = t('leg_hw_mid');
+    document.getElementById('leg-max').textContent = t('leg_hw_max');
   } else if(isDiff){
-    document.getElementById('legend-title').textContent = 'Difficulté (score auto)';
-    document.getElementById('leg-min').textContent = '★ Facile';
-    document.getElementById('leg-mid').textContent = '★★★ Moyen';
-    document.getElementById('leg-max').textContent = '★★★★★ Extrême';
+    document.getElementById('legend-title').textContent = t('leg_diff_title');
+    document.getElementById('leg-min').textContent = t('leg_diff_min');
+    document.getElementById('leg-mid').textContent = t('leg_diff_mid');
+    document.getElementById('leg-max').textContent = t('leg_diff_max');
   } else {
-    document.getElementById('legend-title').textContent = `Pente %${topoLoaded?' · topo':' · GPS'}`;
+    document.getElementById('legend-title').textContent = `${t('leg_slope_title')}${topoLoaded?' · topo':' · GPS'}`;
     document.getElementById('leg-min').textContent = '0%';
     document.getElementById('leg-mid').textContent = '10%';
     document.getElementById('leg-max').textContent = '≥50%';
@@ -850,8 +1037,8 @@ function updateUI(){
   const nW=points.filter(p=>p.kind==='wpt').length;
   const sel=points.filter(p=>p.selected).length;
   $status.textContent = points.length
-    ? `${nT.toLocaleString()} pts${nW?` · ${nW} WPT`:''}${sel?` · ${sel} sél.`:''}`
-    : 'Aucun fichier';
+    ? `${nT.toLocaleString()} pts${nW?` · ${nW} WPT`:''}${sel?` · ${sel} ${t('lbl_sel')}`:''}`
+    : t('status_nofile');
   document.getElementById('btnDelete').disabled = sel===0;
   document.getElementById('btnUndo').disabled   = history.length===0;
   document.getElementById('btnExport').disabled = points.length===0;
@@ -887,7 +1074,7 @@ function chkClass(pred){
 // ── Difficulty helpers ────────────────────────────────────────────────────────
 const DIFF_CLS    = ['','d1c','d2c','d3c','d4c','d5c'];
 const DIFF_STARS  = ['','★','★★','★★★','★★★★','★★★★★'];
-const DIFF_LABELS = ['','Facile','Aisé','Moyen','Difficile','Extrême'];
+let   DIFF_LABELS = ['','Facile','Aisé','Moyen','Difficile','Extrême'];
 
 function appendSegRow(tree, t, seg){
   const key = `${t}_${seg.idx}`;
@@ -931,7 +1118,7 @@ function appendSegRow(tree, t, seg){
   // comment textarea
   const cmt = document.createElement('textarea');
   cmt.className = 'seg-comment'; cmt.rows = 1;
-  cmt.placeholder = 'Commentaire…';
+  cmt.placeholder = t('comment_ph');
   cmt.value = ann.comment || '';
   cmt.oninput = () => { annotations[key] = {...annotations[key]||ann, comment:cmt.value}; };
   block.appendChild(cmt);
@@ -959,7 +1146,7 @@ function mkRow(depth,dot,label,count,chkCl,eyeVis,onChk,onEye,caret,onCaret){
     c.onclick=e=>{e.stopPropagation(); onCaret&&onCaret();}; div.appendChild(c);
   }
   const ey=document.createElement('span'); ey.className='eye'+(eyeVis?'':' off'); ey.textContent='👁';
-  ey.title=eyeVis?'Masquer':'Afficher';
+  ey.title=eyeVis?t('eye_hide'):t('eye_show');
   ey.onclick=e=>{e.stopPropagation(); onEye();}; div.appendChild(ey);
   const ck=document.createElement('span'); ck.className=chkCl;
   ck.onclick=e=>{e.stopPropagation(); onChk();}; div.appendChild(ck);
@@ -1046,7 +1233,7 @@ function buildGpxHeader(){
   let sub = `<span>${metaTracks.length} trace${metaTracks.length>1?'s':''}</span>`;
   if(nWpt)  sub += `<span>${nWpt} WPT</span>`;
   if(nSel)  sub += `<span style="color:#e94560">${nSel} sél.</span>`;
-  if(manualElevFile) sub += `<span style="color:#c97a00" title="Valeurs saisies manuellement">+${manualElevFile.dPlus}m D+ ✏</span>`;
+  if(manualElevFile) sub += `<span style="color:#c97a00" title="${t('manual_note')}">+${manualElevFile.dPlus}m D+ ✏</span>`;
   document.getElementById('gpx-sub').innerHTML = sub;
 
   // eye
@@ -1123,7 +1310,7 @@ document.getElementById('btnTopo').addEventListener('click',function(){
     .catch(()=>{
       clearTimeout(tid);
       this.textContent='🏔 Élévation topo'; this.className=''; this.disabled=false;
-      $status.textContent='Erreur téléchargement SRTM';
+      $status.textContent=t('st_srtm_err');
     });
 });
 
@@ -1246,7 +1433,7 @@ document.getElementById('btnExport').addEventListener('click',function(){
     // Rien de sélectionné → tout le visible
     exportPts = points.filter(p=>!p.hidden);
   }
-  if(!exportPts.length){ $status.textContent='⚠ Aucun point à exporter'; return; }
+  if(!exportPts.length){ $status.textContent=t('st_no_pts'); return; }
 
   // Couleurs d'export
   exportPts = exportPts.map(p=>({...p, _export_color:getExportColor(p), _export_label:getExportLabel(p)}));
@@ -1273,7 +1460,7 @@ document.getElementById('btnExport').addEventListener('click',function(){
     a.href=`/download?file=${encodeURIComponent(d.saved)}`;
     a.download=d.saved;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  }).catch(e=>{ $status.textContent='⚠ Erreur export'; btn.disabled=false; btn.textContent='⬇ Export'; });
+  }).catch(e=>{ $status.textContent=t('st_export_err'); btn.disabled=false; btn.textContent=t('btnExport'); });
 });
 
 document.getElementById('btnAnalyze').addEventListener('click',function(){
@@ -1317,7 +1504,7 @@ document.getElementById('gpxFileInput').addEventListener('change', function(){
   fetch('/upload', {method:'POST', body:fd})
     .then(r=>r.json())
     .then(data=>{
-      if(data.error){ $status.textContent='⚠ '+data.error; btn.textContent='📂 Ouvrir GPX depuis le PC'; btn.disabled=false; return; }
+      if(data.error){ $status.textContent='⚠ '+data.error; btn.textContent=t('btnUpload'); btn.disabled=false; return; }
       // mettre à jour le <select> avec la liste fraîche
       const sel = document.getElementById('fileSelect');
       sel.innerHTML = '<option value="">— fichier GPX —</option>';
@@ -1330,7 +1517,7 @@ document.getElementById('gpxFileInput').addEventListener('change', function(){
       this.value='';   // reset input pour permettre re-sélection du même fichier
       loadFile(data.name);
     })
-    .catch(e=>{ $status.textContent='⚠ Erreur upload'; btn.textContent='📂 Ouvrir GPX depuis le PC'; btn.disabled=false; });
+    .catch(e=>{ $status.textContent=t('st_upload_err'); btn.textContent=t('btnUpload'); btn.disabled=false; });
 });
 
 document.getElementById('btnDeleteGpx').addEventListener('click', function(){
@@ -1340,7 +1527,7 @@ document.getElementById('btnDeleteGpx').addEventListener('click', function(){
   fetch('/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file})})
     .then(r=>r.json())
     .then(data=>{
-      if(data.error){ $status.textContent='⚠ '+data.error; this.disabled=false; this.textContent='🗑 Supprimer ce fichier GPX'; return; }
+      if(data.error){ $status.textContent='⚠ '+data.error; this.disabled=false; this.textContent=t('btnDeleteGpx'); return; }
       // vider la carte
       points=[]; metaTracks=[]; metaRoutes=[]; metaWpts=[]; history=[];
       analysisData={}; annotations={}; file=null; topoLoaded=false; osmWaysLoaded=false;
@@ -1355,10 +1542,10 @@ document.getElementById('btnDeleteGpx').addEventListener('click', function(){
       const sel=document.getElementById('fileSelect');
       sel.innerHTML='<option value="">— fichier GPX —</option>';
       (data.files||[]).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; sel.appendChild(o); });
-      $status.textContent=`"${file||'Fichier'}" supprimé`;
+      $status.textContent=`"${file||'—'}"${t('st_deleted')}`;
       this.textContent='🗑 Supprimer ce fichier GPX';
     })
-    .catch(()=>{ this.disabled=false; this.textContent='🗑 Supprimer ce fichier GPX'; $status.textContent='⚠ Erreur suppression'; });
+    .catch(()=>{ this.disabled=false; this.textContent=t('btnDeleteGpx'); $status.textContent=t('st_delete_err'); });
 });
 
 document.getElementById('colorPicker').addEventListener('change',function(){
@@ -1506,13 +1693,13 @@ function loadOsmTypes(triggerBtn){
       const label=`🛣️ ✓ (${data.count} voies)`;
       btnToolbar.textContent=label; btnToolbar.classList.add('topo-ok'); btnToolbar.disabled=false;
       btnSb.textContent=label; btnSb.disabled=false;
-      $status.textContent=`${data.count} voies OSM chargées`;
+      $status.textContent=`${data.count}${t('st_osm_loaded')}`;
       document.getElementById('sb-nohw').style.display='none';
     })
     .catch(err=>{
       btnToolbar.textContent='🛣️ Types route'; btnToolbar.disabled=false;
       btnSb.textContent='🛣️ Charger types OSM'; btnSb.disabled=false;
-      $status.textContent='Erreur OSM : '+err.message;
+      $status.textContent=t('st_osm_err')+err.message;
     });
 }
 
@@ -1525,7 +1712,7 @@ let _geoMarker = null, _geoCircle = null;
 
 document.getElementById('btnGeo').addEventListener('click', function(){
   if(!navigator.geolocation){
-    document.getElementById('status').textContent = 'Géolocalisation non supportée';
+    document.getElementById('status').textContent = t('st_geo_unsup');
     return;
   }
   this.textContent = '⏳'; this.disabled = true;
@@ -1548,7 +1735,7 @@ document.getElementById('btnGeo').addEventListener('click', function(){
       this.textContent = '📍 Moi'; this.disabled = false;
     },
     err => {
-      document.getElementById('status').textContent = 'Position refusée : ' + err.message;
+      document.getElementById('status').textContent = t('st_geo_denied') + err.message;
       this.textContent = '📍 Moi'; this.disabled = false;
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
@@ -1617,18 +1804,18 @@ function calcMeasureStats(pts){
 function showMeasureStats(s, title){
   const clsMap={1:'d1c',2:'d2c',3:'d3c',4:'d4c',5:'d5c'};
   const curveRow = !osmWaysLoaded
-    ? `<div class="mstat"><span class="mstat-val" style="font-size:13px">${s.curveLbl}</span><span class="mstat-lbl">Sinuosité</span></div>`
+    ? `<div class="mstat"><span class="mstat-val" style="font-size:13px">${s.curveLbl}</span><span class="mstat-lbl">${t('lbl_sinuosity')}</span></div>`
     : '';
   document.getElementById('measure-stats').innerHTML=`
-    <div class="mstat"><span class="mstat-val">${s.dist} km</span><span class="mstat-lbl">Distance</span></div>
-    <div class="mstat"><span class="mstat-val">${s.dPlus>0?'+'+s.dPlus+' m':'—'}</span><span class="mstat-lbl">D+</span></div>
-    <div class="mstat"><span class="mstat-val">${s.dMinus>0?'-'+s.dMinus+' m':'—'}</span><span class="mstat-lbl">D-</span></div>
-    <div class="mstat"><span class="mstat-val">${s.avg}%</span><span class="mstat-lbl">Pente moy.</span></div>
-    <div class="mstat"><span class="mstat-val">${s.max}%</span><span class="mstat-lbl">Pente max.</span></div>
+    <div class="mstat"><span class="mstat-val">${s.dist} km</span><span class="mstat-lbl">${t('lbl_dist')}</span></div>
+    <div class="mstat"><span class="mstat-val">${s.dPlus>0?'+'+s.dPlus+' m':'—'}</span><span class="mstat-lbl">${t('lbl_dplus')}</span></div>
+    <div class="mstat"><span class="mstat-val">${s.dMinus>0?'-'+s.dMinus+' m':'—'}</span><span class="mstat-lbl">${t('lbl_dminus')}</span></div>
+    <div class="mstat"><span class="mstat-val">${s.avg}%</span><span class="mstat-lbl">${t('lbl_slope_avg')}</span></div>
+    <div class="mstat"><span class="mstat-val">${s.max}%</span><span class="mstat-lbl">${t('lbl_slope_max')}</span></div>
     ${curveRow}
-    <div class="mstat"><span class="mstat-val diff-badge ${clsMap[s.score]||''}">${DIFF_STARS[s.score]} ${s.label}</span><span class="mstat-lbl">Difficulté</span></div>
+    <div class="mstat"><span class="mstat-val diff-badge ${clsMap[s.score]||''}">${DIFF_STARS[s.score]} ${DIFF_LABELS[s.score]||s.label}</span><span class="mstat-lbl">${t('lbl_difficulty')}</span></div>
   `;
-  document.getElementById('measure-hint').textContent = title || `${s.pts} pts · cliquez A pour nouvelle mesure`;
+  document.getElementById('measure-hint').textContent = title || `${s.pts} ${t('measure_pts_new')}`;
   // Affiche la section relief absent si pas d'altitude sur le segment
   const noElev = s.avg==='—' && s.max==='—';
   document.getElementById('measure-elev-missing').style.display = noElev ? 'block' : 'none';
@@ -1639,7 +1826,7 @@ function showMeasureStats(s, title){
 function clearMeasure(){
   measureMarks.forEach(m=>m.remove()); measureMarks=[]; measurePts=[];
   document.getElementById('measure-stats').innerHTML='';
-  document.getElementById('measure-hint').textContent='Cliquez sur la trace pour poser le point A';
+  document.getElementById('measure-hint').textContent=t('measure_hint_A');
 }
 
 function calcFromSelection(){
@@ -1647,7 +1834,7 @@ function calcFromSelection(){
   if(!sel.length){ return false; }
   // Sort by id to preserve track order
   sel.sort((a,b)=>a.id-b.id);
-  showMeasureStats(calcMeasureStats(sel), `${sel.length} pts sélectionnés`);
+  showMeasureStats(calcMeasureStats(sel), `${sel.length} ${t('measure_pts_sel')}`);
   return true;
 }
 
@@ -1722,7 +1909,7 @@ document.getElementById('btnMeasure').addEventListener('click', function(){
 
 // Charger topo SRTM depuis le panel mesure
 document.getElementById('btnMeasureTopo').addEventListener('click', function(){
-  if(!file){ document.getElementById('measure-hint').textContent='⚠ Aucun fichier chargé'; return; }
+  if(!file){ document.getElementById('measure-hint').textContent=t('status_nofile'); return; }
   this.textContent='⏳…'; this.disabled=true;
   fetch('/elevation?file='+encodeURIComponent(file))
     .then(r=>r.json())
@@ -1925,7 +2112,7 @@ function toggleDrawMode(){
       clearMeasure(); document.getElementById('measure-panel').style.display='none'; }
     map.doubleClickZoom.disable();
     drawPts=[]; _updateDrawLine();
-    $status.textContent='✏ Dessin — clic : ajouter point · double-clic : terminer · clic-droit : annuler dernier · Échap : annuler';
+    $status.textContent=t('st_draw_mode');
   } else {
     _cancelDraw();
   }
@@ -1957,7 +2144,7 @@ function _finishDraw(){
   computeSlopes(); renderAll(); buildTree(); buildGpxHeader(); updateUI();
   document.getElementById('btnAnalyze').disabled=false;
   document.getElementById('btnOsmTypes').disabled=false;
-  $status.textContent=`✓ Trace ajoutée (${n} pts) — exportez pour sauvegarder`;
+  $status.textContent=`${t('st_draw_added')} (${n} pts) — ${t('st_draw_save')}`;
 }
 
 function _cancelDraw(){
@@ -2000,7 +2187,7 @@ map.on('click',e=>{
   const ll=snap?snap.snapLL:e.latlng;
   drawPts.push({lat:ll.lat,lon:ll.lng});
   _updateDrawLine();
-  $status.textContent=`✏ ${drawPts.length} pt${drawPts.length>1?'s':''} — double-clic pour terminer`;
+  $status.textContent=`✏ ${drawPts.length} pt${drawPts.length>1?'s':''} — ${lang==='fr'?'double-clic pour terminer':'double-click to finish'}`;
 });
 
 // Double-clic : retire le dernier pt (ajouté par le 2e click) puis finalise
@@ -2016,7 +2203,7 @@ map.on('contextmenu',e=>{
   L.DomEvent.stopPropagation(e);
   if(drawPts.length>0){
     drawPts.pop(); _updateDrawLine();
-    $status.textContent=`✏ ${drawPts.length} pt${drawPts.length>1?'s':''} (annulé)`;
+    $status.textContent=`✏ ${drawPts.length} pt${drawPts.length>1?'s':''} (${lang==='fr'?'annulé':'cancelled'})`;
   }
 });
 
@@ -2267,24 +2454,24 @@ td.notes{min-width:120px;border-left:2px dashed #bbc}
 <header>
   <div>
     <h1>🧭 Roadbook — ${traceName}</h1>
-    <div class="meta">Date : <b>${today}</b> &nbsp;|&nbsp; Fichier : <b>${file||'—'}</b></div>
+    <div class="meta">${t('rb_date')} : <b>${today}</b> &nbsp;|&nbsp; ${t('rb_file')} : <b>${file||'—'}</b></div>
     <div class="stats">
-      <div class="stat"><span class="stat-val">${s.dist} km</span><span class="stat-lbl">Distance</span></div>
+      <div class="stat"><span class="stat-val">${s.dist} km</span><span class="stat-lbl">${t('lbl_dist')}</span></div>
       <div class="stat"><span class="stat-val">+${Math.round(dPlus)} m</span><span class="stat-lbl">D+</span></div>
       <div class="stat"><span class="stat-val">−${Math.round(dMinus)} m</span><span class="stat-lbl">D−</span></div>
-      <div class="stat"><span class="stat-val">${s.avg}%</span><span class="stat-lbl">Pente moy.</span></div>
-      <div class="stat"><span class="stat-val">${s.label}</span><span class="stat-lbl">Difficulté</span></div>
+      <div class="stat"><span class="stat-val">${s.avg}%</span><span class="stat-lbl">${t('rb_slope_avg')}</span></div>
+      <div class="stat"><span class="stat-val">${DIFF_LABELS[s.score]||s.label}</span><span class="stat-lbl">${t('rb_difficulty')}</span></div>
     </div>
   </div>
-  <button onclick="window.print()" style="padding:6px 14px;font-size:12px;cursor:pointer;background:#1a3a8a;color:#fff;border:none;border-radius:5px;margin-left:auto">🖨 Imprimer</button>
+  <button onclick="window.print()" style="padding:6px 14px;font-size:12px;cursor:pointer;background:#1a3a8a;color:#fff;border:none;border-radius:5px;margin-left:auto">${t('rb_print')}</button>
 </header>
 <table>
   <thead><tr>
-    <th class="tc">Dist. (km)</th>
-    <th class="tc">Partiel (km)</th>
-    <th class="tc" style="width:80px">Direction</th>
-    <th>Description</th>
-    <th class="tc" style="width:130px">Notes</th>
+    <th class="tc">${t('rb_dist_km')}</th>
+    <th class="tc">${t('rb_partial_km')}</th>
+    <th class="tc" style="width:80px">${t('rb_direction')}</th>
+    <th>${t('rb_description')}</th>
+    <th class="tc" style="width:130px">${t('rb_notes')}</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>

@@ -1,0 +1,29 @@
+# Cache données (OSM + SRTM — volumineuses, régénérables)
+cache/
+
+# Fichiers d'entrée GPX/KML (copyright TET + données perso)
+input/
+
+# Fichiers générés
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Clés API
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~

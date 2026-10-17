@@ -1,7 +1,249 @@
-# TrailWaver
+[![FR](https://img.shields.io/badge/lang-FR-blue)](#français) [![EN](https://img.shields.io/badge/lang-EN-blue)](#english)
+
+---
+
+<a name="english"></a>
+
+# TrailWaver 🇬🇧
+
+Python toolkit to qualify and edit off-road tracks (GPX/KML).  
+Goal: bring what the Trans Euro Trail lacks — fine terrain qualification, legal access filtering, and a usable GPS roadbook.
+
+![TrailWaver Editor — OSM road type colorization](Pr%C3%A9sentation.png)
+
+*Web editor — TET FR track colored by OSM road type (grade 1–5 track, classified road), track/segment sidebar, full toolbar.*
+
+---
+
+## Overview
+
+TrailWaver consists of two independent tools:
+
+| Tool | Description |
+|---|---|
+| `analyze_gpx.py` | CLI — analyzes a track in 500 m segments, produces a CSV report, an HTML map, and an annotated GPX |
+| `editor.py` | Web — interactive GPX editor (Flask + Leaflet), colorization, analysis, drawing, Garmin/OsmAnd export |
+
+---
+
+## Installation
+
+**Requirements: Python 3.10+**
+
+```bash
+pip install -r requirements.txt
+```
+
+Dependencies: `gpxpy`, `requests`, `folium`, `pandas`, `numpy`, `shapely`, `flask`, `srtm.py`
+
+---
+
+## CLI Analyzer — `analyze_gpx.py`
+
+### Usage
+
+```bash
+python analyze_gpx.py input/my_track.gpx
+python analyze_gpx.py input/my_track.kml
+```
+
+### What it does
+
+1. **Loads** the track (GPX tracks + routes, KML LineString/gx:Track)
+2. **Elevation** — uses existing `<ele>` tags; otherwise queries OpenTopoData SRTM-90m
+3. **OSM road types** — queries Overpass API per geographic tile of 0.15° (~13 km), with disk cache in `cache/osm/`
+4. **Splits** the track into ~500 m segments
+5. **Analyzes each segment**: distance, D+/D-, average slope, OSM road type, surface, tracktype
+
+### Outputs (in `output/`)
+
+| File | Content |
+|---|---|
+| `<name>_report.csv` | Per-segment table: coordinates, altitude, elevation gain, slope, type, surface |
+| `<name>_map.html` | Folium map colored by road type, detailed popups |
+| `<name>_annotated.gpx` | GPX with one waypoint per segment (type + altitude + elevation) |
+
+### OSM classification
+
+Tracks are classified in French/English from `highway` + `tracktype` tags:
+
+```
+grade1 → paved track (hard surface)
+grade2 → paved track (compact gravel)
+grade3 → track (mixed)
+grade4 → difficult track (grass/mud)
+grade5 → path (very degraded)
+```
+
+### Overpass cache
+
+OSM tiles are cached in `cache/osm/tile_<lat>_<lon>.json`.  
+An existing tile is never re-downloaded. Delete the file to force a refresh.
+
+---
+
+## Web Editor — `editor.py`
+
+### Launch
+
+```bash
+python editor.py
+# or double-click launch.bat
+```
+
+Opens automatically at `http://localhost:5050`.
+
+### File management
+
+- GPX files in `input/` are listed at startup
+- **Upload** from the UI (`+ Upload` button) — GPX validated server-side before saving
+- **Delete** from the sidebar
+
+### Visualization
+
+**Track colorization modes:**
+
+| Mode | Description |
+|---|---|
+| Default | Single color per track |
+| Altitude | Gradient by elevation (Hotline) |
+| Slope | Gradient by local slope |
+| Difficulty | Score 1–5 per segment (green → red) |
+| OSM road types | Color by `highway` + `tracktype` (Overpass call) |
+
+### Segment analysis
+
+`📊 Analyze` button — splits the track into N-metre segments (configurable) and computes per segment:
+
+- Average and maximum slope
+- D+ / D-
+- **Difficulty score 1–5** based on the 90th percentile of slopes
+- Curve bonus (weighted corner density, resampled at fixed intervals)
+- Label: Easy / Mild / Medium / Hard / Extreme
+
+Annotated segments become waypoints on export.
+
+### Topo elevation — NASA SRTM
+
+`🏔 Topo elevation` button — queries SRTM 90m tiles (NASA), Gaussian smoothing applied to remove grid artefacts.  
+Local cache in `cache/srtm/` (`.hgt.zip` files, auto-downloaded on first use).
+
+### OSM access layer
+
+`🔒 Access` button — queries Overpass on the visible extent and displays:
+
+- **Lines** colored by access right (green = yes, red = forbidden, orange = private, yellow = restricted)
+- **Polygons**: military zones (red), nature reserves/parks (yellow), forests (orange — Belgian Forest Code)
+
+Supported vehicle types: `motor_vehicle`, `motorcycle`, `4wd`, `atv`, `bicycle`, `foot`, `horse`
+
+### OSM road types
+
+`🛣️ Road types` button — loads `way[highway]` on the visible extent and colors by type.  
+Also enables OSM snap for draw mode.
+
+### Selection and editing
+
+| Action | Description |
+|---|---|
+| Key `R` | Rectangle mode — selects points in the drawn area |
+| Invert selection | Inverts the current selection |
+| Delete | Deletes selected points (with Undo) |
+| Ctrl+Z | Undo last deletion |
+
+### Draw mode (key `D`)
+
+Allows tracing a new route by hand on the map.
+
+| Interaction | Effect |
+|---|---|
+| Left click | Adds a point (free or snapped to OSM segment) |
+| Double-click | Finishes and validates the track |
+| Right click | Undoes the last point |
+| Enter | Finishes and validates |
+| Esc | Cancels everything |
+
+**OSM snap**: if road types are loaded, the cursor automatically snaps to the nearest OSM segment within a 30px screen radius (highlighted in cyan).
+
+### Measure (key `M`)
+
+Click A → click B (or selection) → displays distance, D+/D- and difficulty score for the segment.
+
+### 3D view
+
+`🗻 3D` button — switches to MapLibre GL view with DEM terrain (AWS Terrarium), adjustable exaggeration.
+
+### Language
+
+`EN`/`FR` button in the toolbar — switches the interface between English and French. Preference is saved in `localStorage`.
+
+### Export
+
+| Mode | Output file |
+|---|---|
+| Standard | `<name>_annotated.gpx` — track + annotation waypoints |
+| Colored (difficulty / slope / altitude / road types) | `<name>_colored_<mode>.gpx` — Garmin (`DisplayColor`) + OsmAnd (`<osmand:color>`) tracks |
+
+---
+
+## Data sources
+
+| Data | Source |
+|---|---|
+| Road types, access | OpenStreetMap via [Overpass API](https://overpass-api.de) |
+| Altitude (CLI) | [OpenTopoData SRTM-90m](https://www.opentopodata.org) |
+| Altitude (editor) | NASA SRTM 90m via `srtm.py` (local cache) |
+| 3D terrain | AWS Terrarium DEM (MapLibre GL) |
+
+---
+
+## Project structure
+
+```
+TrailWaver/
+├── analyze_gpx.py       # CLI analyzer
+├── editor.py            # Flask server (web editor)
+├── templates/
+│   └── editor.html      # Leaflet UI (self-contained HTML/JS)
+├── requirements.txt
+├── launch.bat           # Windows shortcut for the editor
+├── input/               # Source GPX files (not versioned)
+├── output/              # Generated files (not versioned)
+└── cache/
+    ├── osm/             # Overpass JSON tiles (not versioned)
+    └── srtm/            # SRTM .hgt.zip tiles (not versioned)
+```
+
+> `input/`, `output/` and `cache/` are in `.gitignore`.  
+> TET files are subject to Trans Euro Trail terms of use — never redistribute them.
+
+---
+
+## Long-term vision
+
+TrailWaver is phase 1 of a larger project:
+
+1. **CLI script** (current) — analysis and qualification of existing tracks
+2. **Qualified graph** — scored OSM segments (slope, surface, legality, condition)
+3. **Routing engine** — track proposal from a multi-criteria form (NetworkX / GraphHopper)
+4. **AI + roadbook** — natural language → constraints → PDF/GPX OpenRally roadbook (DMD, Seekers, Tulip)
+
+Non-negotiable principle: **the AI never draws the route** — it translates constraints; the graph engine computes.
+
+---
+
+---
+
+<a name="français"></a>
+
+# TrailWaver 🇫🇷
 
 Boîte à outils Python pour qualifier et éditer des traces off-road (GPX/KML).  
 Objectif : apporter ce qui manque au Trans Euro Trail — la qualification fine du terrain, la légalité de l'accès, et la génération d'un roadbook utilisable sur GPS.
+
+![Éditeur TrailWaver — colorisation par types de route OSM](Pr%C3%A9sentation.png)
+
+*Éditeur web — trace TET FR colorée par type de voie OSM (chemin grade 1–5, route classifiée), sidebar track/segments, toolbar complète.*
 
 ---
 
@@ -13,10 +255,6 @@ TrailWaver se compose de deux outils indépendants :
 |---|---|
 | `analyze_gpx.py` | CLI — analyse une trace par tronçons de 500 m, produit un rapport CSV, une carte HTML et un GPX annoté |
 | `editor.py` | Web — éditeur GPX interactif (Flask + Leaflet), colorisation, analyse, dessin, export Garmin/OsmAnd |
-
-![Éditeur TrailWaver — colorisation par types de route OSM](Pr%C3%A9sentation.png)
-
-*Éditeur web — trace TET FR colorée par type de voie OSM (chemin grade 1–5, route classifiée), sidebar track/segments, toolbar complète.*
 
 ---
 
@@ -59,7 +297,7 @@ python analyze_gpx.py input/ma_trace.kml
 
 ### Classification OSM
 
-Les chemins sont classés en français depuis les tags `highway` + `tracktype` :
+Les chemins sont classés depuis les tags `highway` + `tracktype` :
 
 ```
 grade1 → chemin roulant (surface dure)
@@ -99,7 +337,7 @@ Ouvre automatiquement `http://localhost:5050`.
 
 | Mode | Description |
 |---|---|
-| Défaut | Couleur unique |
+| Défaut | Couleur unique par trace |
 | Altitude | Dégradé selon l'élévation (Hotline) |
 | Pente | Dégradé selon la pente locale |
 | Difficulté | Score 1–5 par segment (vert → rouge) |
@@ -166,6 +404,10 @@ Clic A → clic B (ou sélection) → affiche distance, D+/D- et score de diffic
 ### Vue 3D
 
 Bouton `🗻 3D` — bascule en vue MapLibre GL avec terrain DEM (AWS Terrarium), exagération réglable.
+
+### Langue
+
+Bouton `EN`/`FR` dans la toolbar — bascule l'interface entre l'anglais et le français. La préférence est sauvegardée en `localStorage`.
 
 ### Export
 
